@@ -1,4 +1,4 @@
-# pramall
+# shoppra
 
 ## Project setup
 ```

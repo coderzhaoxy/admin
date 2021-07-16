@@ -1,174 +1,184 @@
-<template xmlns:tab-control="http://www.w3.org/1999/xlink">
-  <div id="home">
-    <nav-bar class="home-nav">
-      <div slot="center">
-        购物街
+<template>
+  <el-container class="home-container">
+    <!--    头部区域-->
+    <el-header class="home-header">
+      <div>
+        <img src="../../assets/img/dog.jpg" alt="">
+        <span>后台管理系统</span>
       </div>
-    </nav-bar>
-    <tab-control v-show="isTabFixed" :title="['流行','新款','精选']" @tabClick="tabClick" class="tab-control"
-                 ref="tabControl1"></tab-control>
-    <scroll class="content"
-            :probe-type="3"
-            :pull-up-load="true"
-            @pullingUp="LoadMore"
-            ref="scroll"
-            @scroll="contentScroll">
-      <home-swiper :banners="banners" @topImageLoad="topImageLoad"></home-swiper>
-      <recommends-view :recommend="recommend"></recommends-view>
-      <feature-view></feature-view>
-      <tab-control :title="['流行','新款','精选']" @tabClick="tabClick" class="tab-control" ref="tabControl2"></tab-control>
-      <goods-list :show-goods="showGoods"></goods-list>
-    </scroll>
-    <back-top v-show="isShowBack" @click.native="backClick"></back-top>
-  </div>
+      <el-menu
+        :route="true"
+        class="el-menu-demo"
+        mode="horizontal"
+        background-color="#373d41"
+        text-color="#fff"
+        active-text-color="#ffd04b">
+        <el-submenu index="2">
+          <template slot="title">个人中心</template>
+          <el-menu-item index="2-1">我的信息</el-menu-item>
+          <el-menu-item index="2-2">消息中心</el-menu-item>
+          <el-menu-item index="2-3">设置</el-menu-item>
+        </el-submenu>
+      </el-menu>
+      <div>
+        <el-button @click="logout">退出</el-button>
+      </div>
+    </el-header>
+    <!--    主题区域-->
+    <el-container>
+      <!--      侧边栏区域-->
+      <el-aside :width="isCollapse?'64px':'200px'">
+        <div class="toggle-button" @click="showMenu">|||</div>
+        <!--        左侧菜单栏区域-->
+        <el-menu
+          default-active="2"
+          background-color="#333744"
+          text-color="#fff"
+          active-text-color="#409EFF"
+          :unique-opened="false "
+          :collapse="isCollapse"
+          :collapse-transition="false"
+          :router="true"
+          :default-active="activePath">
+          <!--          一级菜单-->
+          <el-submenu :index="item.id+''" v-for="item in menuList">
+            <template slot="title">
+              <i :class="iconList[item.id]"></i>
+              <span>{{item.authName}}</span>
+            </template>
+            <!--            二级菜单-->
+            <el-menu-item :index="'/'+subItem.path" :ndex="subItem.id+''" v-for="subItem in item.children"
+                          @click="saveNavState('/'+subItem.path)">
+              <i class="el-icon-menu"></i>
+              <span>{{subItem.authName}}</span>
+            </el-menu-item>
+          </el-submenu>
+        </el-menu>
+      </el-aside>
+      <!--      内容区域-->
+      <el-main class="main">
+        <router-view></router-view>
+      </el-main>
+    </el-container>
+  </el-container>
 </template>
 
 <script>
-  import NavBar from "../../components/content/navbar/NavBar";
-  import HomeSwiper from "./childcomps/HomeSwiper";
-  import RecommendsView from "./childcomps/RecommendsView";
-  import FeatureView from "./childcomps/FeatureView";
-  import TabControl from "../../components/content/tabcontrol/TabControl";
-  import GoodsList from "../../components/content/goods/GoodsList";
-  import GoodsListItem from "../../components/content/goods/GoodsListItem";
-  import BackTop from "../../components/content/backTop/BackTop";
-
-  import {GetHomeMultidata, GetHomeGoods} from "../../network/home";
-  import Scroll from "../../components/common/bscroll/Scroll";
+  import {getMenuList} from "../../network/home";
 
   export default {
     name: "Home",
-    components: {
-      RecommendsView,
-      NavBar,
-      HomeSwiper,
-      FeatureView,
-      TabControl,
-      GoodsList,
-      GoodsListItem,
-      BackTop,
-      Scroll
-    },
     data() {
       return {
-        banners: [],
-        recommend: [],
-        goods: {
-          'pop': {page: 0, list: []},
-          'new': {page: 0, list: []},
-          'sell': {page: 0, list: []}
-        },
-        currentType: 'pop',
-        saveY: 0,
-        isShowBack: false,
-        tabOffsetTop: 0,
-        isTabFixed: false
+        //左侧菜单栏的数组
+        menuList: [],
+        // 当前活跃的路径
+        activePath: '',
+        //控制侧边栏的展开与折叠
+        isCollapse: false,
+        iconList: {
+          '125': 'iconfont icon-yonghu',
+          '103': 'iconfont icon-quanxianguanli',
+          '101': 'iconfont icon-shangpin',
+          '102': 'iconfont icon-dingdan',
+          '145': 'iconfont icon-shujutongji',
+
+        }
       }
     },
     created() {
-      this.GetHomeMultidata()
-      this.GetHomeGoods('pop')
-      this.GetHomeGoods('new')
-      this.GetHomeGoods('sell')
-    },
-    computed: {
-      showGoods() {
-        return this.goods[this.currentType].list
-      }
-    },
-    activated() {
-      this.$refs.scroll.refresh()
-      this.$refs.scroll.scroll.scrollTo(0, this.saveY, 1)
-    },
-    deactivated() {
-      this.saveY = this.$refs.scroll.getScrollY()
+      this._getMenuList()
+      this.activePath = window.sessionStorage.getItem('activePath')
     },
     methods: {
-      GetHomeMultidata() {
-        GetHomeMultidata().then(res => {
-          this.banners = res.data.banner.list
-          this.recommend = res.data.recommend.list
+      //退出登录按钮
+      logout() {
+        window.sessionStorage.clear()
+        this.$router.push('/login')
+      },
+      _getMenuList() {
+        getMenuList().then(res => {
+          if (res.meta.status !== 200) {
+            return this.$message.error('获取菜单列表失败')
+          }
+          this.menuList = res.data
         })
       },
-      GetHomeGoods(type) {
-        const page = this.goods[type].page + 1
-        GetHomeGoods(type, 1).then(res => {
-          //这里用push添加
-          //赋值的话会把之前的商品数据覆盖掉
-          this.goods[type].list.push(...res.data.list)
-          this.goods[type].page += 1
-        })
+      //点击按钮切换菜单的折叠与展开
+      showMenu() {
+        return this.isCollapse = !this.isCollapse
       },
-      tabClick(index) {
-        switch (index) {
-          case 0:
-            this.currentType = 'pop'
-            break
-          case  1:
-            this.currentType = 'new'
-            break
-          case  2:
-            this.currentType = 'sell'
-            break
-        }
-        //当点击的时候让当前保存的currentIndex 等于 index
-        this.$refs.tabControl1.currentIndex = index
-        this.$refs.tabControl2.currentIndex = index
-      },
-      LoadMore() {
-        this.GetHomeGoods(this.currentType)
-        //上拉加载更多完成调用一下 finishPullUp()才可进行下一次加载更多
-        this.$refs.scroll.scroll.finishPullUp()
-      },
-      contentScroll(position) {
-        //判断返回顶部是否显示
-        this.isShowBack = (-position.y) > 2000
-        //判断是否吸顶
-        this.isTabFixed = (-position.y) > this.tabOffsetTop
-      },
-      backClick() {
-        this.$refs.scroll.scroll.scrollTo(0, 0, 500)
-      },
-      topImageLoad() {
-        this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop
+      //保存链接的激活状态
+      saveNavState(activePath) {
+        window.sessionStorage.setItem('activePath', activePath)
+        this.activePath = activePath
       }
     }
   }
 </script>
 
 <style scoped>
-  #home {
-    /*padding-top: 44px;*/
-    /*视口高度*/
-    /*height: 10000px;*/
-    height: 100vh;
-    position: relative;
+  @import "../../assets/fonts/iconfont.css";
 
+  .home-container {
+    height: 100%;
   }
 
-  .home-nav {
-    background-color: var(--color-tint);
+  .home-header {
+    background-color: #373d41;
+    display: flex;
+    justify-content: space-between;
+    padding-left: 0;
+    align-items: center;
     color: #fff;
-    /*使用浏览器原始滚动时，为了让导航不跟随滚动*/
-    /*position: fixed;*/
-    /*left: 0;*/
-    /*right: 0;*/
-    /*top: 0;*/
-    /*z-index: 9;*/
+    font-size: 20px;
   }
 
-  .content {
-    /*height: calc(100% - 93px);*/
-    overflow: hidden;
+  .home-header div {
+    display: flex;
+    align-items: center;
+  }
+
+  .home-header img {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    margin-right: 15px;
+  }
+
+  .el-aside {
+    background-color: #333744;
+  }
+
+  .el-menu {
+    border-right: none;
+  }
+
+  .main {
+    background-color: #EAEDF1;
+    overflow-y: scroll !important;
+    height: 94vh;
+    padding-bottom: 50px;
+  }
+
+  .toggle-button {
+    background-color: #4A5064;
+    color: #ffffff;
+    text-align: center;
+    font-size: 14px;
+    line-height: 24px;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+  }
+
+  .iconfont {
+    margin-right: 10px;
+  }
+
+  .el-menu-demo {
     position: absolute;
-    top: 44px;
-    bottom: 49px;
-    left: 0;
-    right: 0;
+    right: 120px;
+    border: none;
   }
 
-  .tab-control {
-    position: relative;
-    z-index: 9;
-  }
 </style>
